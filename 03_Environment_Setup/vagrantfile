@@ -1,0 +1,87 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Advanced SOC Lab — Vagrantfile
+# Provisions: Ubuntu SIEM, Kali Attacker, Windows 10 Victim
+
+Vagrant.configure("2") do |config|
+
+  # ─────────────────────────────────────────
+  # 1. Wazuh SIEM Server (Ubuntu 22.04)
+  # ─────────────────────────────────────────
+  config.vm.define "siem" do |siem|
+    siem.vm.box = "ubuntu/jammy64"
+    siem.vm.hostname = "siem-server"
+    siem.vm.network "private_network", ip: "192.168.56.10"
+    siem.vm.network "forwarded_port", guest: 5601, host: 5601   # Kibana
+    siem.vm.network "forwarded_port", guest: 9000, host: 9000   # TheHive
+    siem.vm.network "forwarded_port", guest: 55000, host: 55000 # Wazuh API
+
+    siem.vm.provider "virtualbox" do |vb|
+      vb.name   = "SOC-SIEM"
+      vb.memory = "8192"
+      vb.cpus   = 4
+    end
+
+    siem.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      apt-get install -y curl wget gnupg apt-transport-https
+      # Wazuh install handled by 04_SIEM_Deployment/wazuh_install.sh
+      # Docker for TheHive/Cortex/MISP
+      curl -fsSL https://get.docker.com | sh
+      usermod -aG docker vagrant
+      curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+      echo "SIEM server provisioned — run wazuh_install.sh next"
+    SHELL
+  end
+
+  # ─────────────────────────────────────────
+  # 2. Kali Linux Attacker
+  # ─────────────────────────────────────────
+  config.vm.define "attacker" do |kali|
+    kali.vm.box = "kalilinux/rolling"
+    kali.vm.hostname = "kali-attacker"
+    kali.vm.network "private_network", ip: "192.168.56.20"
+
+    kali.vm.provider "virtualbox" do |vb|
+      vb.name   = "SOC-Attacker"
+      vb.memory = "4096"
+      vb.cpus   = 2
+    end
+
+    kali.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      apt-get install -y nmap hydra metasploit-framework seclists
+      # Install Atomic Red Team
+      gem install atomic-red-team 2>/dev/null || true
+      echo "Attacker VM ready"
+    SHELL
+  end
+
+  # ─────────────────────────────────────────
+  # 3. Windows 10 Victim
+  # ─────────────────────────────────────────
+  config.vm.define "victim" do |win|
+    win.vm.box = "gusztavvargadr/windows-10"
+    win.vm.hostname = "win10-victim"
+    win.vm.network "private_network", ip: "192.168.56.30"
+
+    win.vm.provider "virtualbox" do |vb|
+      vb.name   = "SOC-Victim-Win10"
+      vb.memory = "4096"
+      vb.cpus   = 2
+    end
+
+    win.vm.provision "powershell", inline: <<-POWERSHELL
+      # Install Chocolatey
+      Set-ExecutionPolicy Bypass -Scope Process -Force
+      [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+      iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+      # Sysmon and Winlogbeat installed via sysmon_config.xml in Step 5
+      Write-Host "Windows victim provisioned"
+    POWERSHELL
+  end
+
+end

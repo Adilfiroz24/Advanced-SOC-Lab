@@ -1,0 +1,358 @@
+# ============================================================
+# Advanced SOC Lab — Full Backend Stack (FINAL WORKING)
+# ============================================================
+# Services: Wazuh (Indexer + Manager + Dashboard),
+#           Elasticsearch + Kibana (for TheHive),
+#           Cassandra, TheHive, Cortex,
+#           MISP (MySQL + Core), Suricata IDS/IPS
+#
+# ✅ MinIO removed
+# ✅ Custom cert mounts removed
+# ✅ Port 1514 → 15140 (Windows fix)
+# ✅ TheHive uses local filesystem
+#
+# Usage:
+#   sudo sysctl -w vm.max_map_count=262144   # required by ES/OpenSearch
+#   docker compose up -d
+#   docker compose ps
+# ============================================================
+
+networks:
+  soc_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24
+
+volumes:
+  wazuh_indexer_data:
+  wazuh_api_configuration:
+  wazuh_etc:
+  wazuh_logs:
+  wazuh_queue:
+  wazuh_var_multigroups:
+  wazuh_integrations:
+  wazuh_active_response:
+  wazuh_agentless:
+  wazuh_wodles:
+  wazuh_dashboard_config:
+  wazuh_dashboard_custom:
+  filebeat_etc:
+  filebeat_var:
+  elasticsearch_data:
+  kibana_data:
+  cassandra_data:
+  thehive_data:
+  cortex_data:
+  misp_db_data:
+  misp_data:
+
+services:
+
+  # ══════════════════════════════════════════════════════
+  # WAZUH INDEXER — OpenSearch storage
+  # ══════════════════════════════════════════════════════
+  wazuh.indexer:
+    image: wazuh/wazuh-indexer:4.7.4
+    container_name: wazuh-indexer
+    hostname: wazuh.indexer
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.10
+    ports:
+      - "9200:9200"
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=${WAZUH_INDEXER_PASS:-SecretPassword1!}"
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - wazuh_indexer_data:/var/lib/wazuh-indexer
+
+  # ══════════════════════════════════════════════════════
+  # WAZUH MANAGER — SIEM engine
+  # ══════════════════════════════════════════════════════
+  # NOTE: Port 1514 is reserved on Windows. Remapped to 15140.
+  wazuh.manager:
+    image: wazuh/wazuh-manager:4.7.4
+    container_name: wazuh-manager
+    hostname: wazuh.manager
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.11
+    ports:
+      - "15140:1514/tcp"
+      - "15140:1514/udp"
+      - "15150:1515"
+      - "55000:55000"
+      - "514:514/udp"
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${WAZUH_INDEXER_PASS:-SecretPassword1!}
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=${WAZUH_PASS:-MyS3cr37P450r.*-}
+    volumes:
+      - wazuh_api_configuration:/var/ossec/api/configuration
+      - wazuh_etc:/var/ossec/etc
+      - wazuh_logs:/var/ossec/logs
+      - wazuh_queue:/var/ossec/queue
+      - wazuh_var_multigroups:/var/ossec/var/multigroups
+      - wazuh_integrations:/var/ossec/integrations
+      - wazuh_active_response:/var/ossec/active-response/bin
+      - wazuh_agentless:/var/ossec/agentless
+      - wazuh_wodles:/var/ossec/wodles
+      - filebeat_etc:/etc/filebeat
+      - filebeat_var:/var/lib/filebeat
+      - ./09_Detection_Rules/local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+    depends_on:
+      wazuh.indexer:
+        condition: service_started
+
+  # ══════════════════════════════════════════════════════
+  # WAZUH DASHBOARD — Visualization (Kibana)
+  # ══════════════════════════════════════════════════════
+  wazuh.dashboard:
+    image: wazuh/wazuh-dashboard:4.7.4
+    container_name: wazuh-dashboard
+    hostname: wazuh.dashboard
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.12
+    ports:
+      - "443:5601"
+    environment:
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${WAZUH_INDEXER_PASS:-SecretPassword1!}
+      - WAZUH_API_URL=https://wazuh.manager
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=kibanaserver
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=${WAZUH_PASS:-MyS3cr37P450r.*-}
+    volumes:
+      - wazuh_dashboard_config:/usr/share/wazuh-dashboard/data/wazuh/config
+      - wazuh_dashboard_custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
+    depends_on:
+      wazuh.indexer:
+        condition: service_started
+      wazuh.manager:
+        condition: service_started
+
+  # ══════════════════════════════════════════════════════
+  # ELASTICSEARCH — General purpose index (used by TheHive)
+  # ══════════════════════════════════════════════════════
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: soc-elasticsearch
+    hostname: elasticsearch
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.21
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - cluster.name=soc-elasticsearch
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -Eq '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # ══════════════════════════════════════════════════════
+  # KIBANA — Visualization for Elasticsearch
+  # ══════════════════════════════════════════════════════
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    container_name: soc-kibana
+    hostname: kibana
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.22
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=soc-kibana
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # ══════════════════════════════════════════════════════
+  # CASSANDRA — TheHive's primary datastore
+  # ══════════════════════════════════════════════════════
+  cassandra:
+    image: cassandra:4.1
+    container_name: soc-cassandra
+    hostname: cassandra
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.30
+    environment:
+      - MAX_HEAP_SIZE=1G
+      - HEAP_NEWSIZE=200M
+      - CASSANDRA_CLUSTER_NAME=soc-thehive
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster' || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 60s
+
+  # ══════════════════════════════════════════════════════
+  # THEHIVE — Case management (local filesystem, no S3)
+  # ══════════════════════════════════════════════════════
+  thehive:
+    image: strangebee/thehive:5.2
+    container_name: soc-thehive
+    hostname: thehive
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.32
+    ports:
+      - "9000:9000"
+    depends_on:
+      cassandra:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - JVM_OPTS=-Xms512m -Xmx1g
+    command:
+      - --secret
+      - "${THEHIVE_SECRET:-SOC-Lab-Secret-Change-In-Production!}"
+      - --cql-hostnames
+      - "cassandra"
+      - --index-backend
+      - "elasticsearch"
+      - --es-hostnames
+      - "elasticsearch"
+      - --storage-filesystem-path
+      - "/opt/thp/thehive/files"
+    volumes:
+      - thehive_data:/opt/thp/thehive/files
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+
+  # ══════════════════════════════════════════════════════
+  # CORTEX — Analyzers & responders
+  # ══════════════════════════════════════════════════════
+  cortex:
+    image: thehiveproject/cortex:3.1.7
+    container_name: soc-cortex
+    hostname: cortex
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.33
+    ports:
+      - "9001:9001"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - JVM_OPTS=-Xms512m -Xmx1g
+    volumes:
+      - cortex_data:/var/lib/cortex
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/api/status"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+
+  # ══════════════════════════════════════════════════════
+  # MISP DATABASE — MySQL
+  # ══════════════════════════════════════════════════════
+  misp-db:
+    image: mysql:8.0
+    container_name: soc-misp-db
+    hostname: misp-db
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.40
+    environment:
+      - MYSQL_DATABASE=misp
+      - MYSQL_USER=misp
+      - MYSQL_PASSWORD=${MISP_DB_PASS:-MispDBPassword123!}
+      - MYSQL_ROOT_PASSWORD=${MISP_DB_ROOT_PASS:-MispRootPassword123!}
+    volumes:
+      - misp_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MISP_DB_ROOT_PASS:-MispRootPassword123!}"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # ══════════════════════════════════════════════════════
+  # MISP — Threat Intelligence Platform
+  # ══════════════════════════════════════════════════════
+  misp:
+    image: ghcr.io/misp/misp-docker/misp-core:latest
+    container_name: soc-misp
+    hostname: misp
+    restart: unless-stopped
+    networks:
+      soc_network:
+        ipv4_address: 172.25.0.41
+    ports:
+      - "8443:443"
+      - "8080:80"
+    depends_on:
+      misp-db:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=misp-db
+      - MYSQL_DATABASE=misp
+      - MYSQL_USER=misp
+      - MYSQL_PASSWORD=${MISP_DB_PASS:-MispDBPassword123!}
+      - MISP_ADMIN_EMAIL=${MISP_ADMIN_EMAIL:-admin@soc.lab}
+      - MISP_ADMIN_PASSPHRASE=${MISP_ADMIN_PASSPHRASE:-Admin1234!}
+      - MISP_BASEURL=https://localhost:8443
+      - TIMEZONE=UTC
+    volumes:
+      - misp_data:/var/www/MISP/app/files
+
+  # ══════════════════════════════════════════════════════
+  # SURICATA — Network IDS/IPS (host networking for Linux/WSL2)
+  # ══════════════════════════════════════════════════════
+  suricata:
+    image: jasonish/suricata:7.0
+    container_name: soc-suricata
+    hostname: suricata
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    command: ["-i", "eth0", "--set", "outputs.1.eve-log.enabled=yes"]
+    volumes:
+      - /var/log/suricata:/var/log/suricata
+      - ./06_Network_Security_Monitoring/suricata_rules:/etc/suricata/rules/local:ro
+    profiles:
+      - linux

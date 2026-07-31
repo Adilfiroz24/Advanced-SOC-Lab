@@ -1,0 +1,295 @@
+<!-- ============================================================
+     Advanced SOC Lab — Custom Wazuh Detection Rules
+     File: /var/ossec/etc/rules/local_rules.xml
+     
+     10+ Production-grade rules covering:
+     - Brute force (SSH, RDP, Windows Auth)
+     - Suspicious processes (LOLBins, PowerShell)
+     - Privilege escalation
+     - Lateral movement
+     - Ransomware indicators
+     - Data exfiltration
+     - Persistence mechanisms
+     - MITRE ATT&CK mapped
+     ============================================================ -->
+
+<group name="soc_lab,">
+
+  <!-- ════════════════════════════════════════════════════════
+       BRUTE FORCE DETECTION
+       MITRE ATT&CK: T1110 - Brute Force
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 1: SSH Brute Force from Single Source -->
+  <rule id="100001" level="10" frequency="10" timeframe="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <description>SOC-ALERT: SSH brute force attack - 10+ failed attempts in 60s</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failed,pci_dss_10.6.1,gdpr_IV_35.7.d,hipaa_164.312.b,nist_800_53_SI.4,</group>
+  </rule>
+
+  <!-- Rule 2: Windows Authentication Brute Force -->
+  <rule id="100002" level="10" frequency="8" timeframe="60">
+    <if_matched_sid>60122</if_matched_sid>
+    <description>SOC-ALERT: Windows credential brute force - multiple 4625 events</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>authentication_failed,windows,pci_dss_10.6.1,</group>
+  </rule>
+
+  <!-- Rule 3: RDP Brute Force Attempt -->
+  <rule id="100003" level="10" frequency="5" timeframe="30">
+    <if_matched_sid>60204</if_matched_sid>
+    <description>SOC-ALERT: RDP brute force attempt detected from same source</description>
+    <mitre>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failed,windows,rdp,</group>
+  </rule>
+
+  <!-- Rule 4: Account Locked After Brute Force -->
+  <rule id="100004" level="12">
+    <if_sid>60111</if_sid>
+    <field name="win.system.eventID">^4740$</field>
+    <description>SOC-CRITICAL: User account locked out (EventID 4740) — brute force suspected</description>
+    <mitre>
+      <id>T1110</id>
+    </mitre>
+    <group>authentication_failed,windows,account_locked,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       SUSPICIOUS PROCESS EXECUTION
+       MITRE ATT&CK: T1059 - Command and Scripting Interpreter
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 5: PowerShell Encoded Command Execution -->
+  <rule id="100005" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-[Ee]nc(odedCommand)?</field>
+    <description>SOC-ALERT: PowerShell encoded command execution — possible obfuscation</description>
+    <mitre>
+      <id>T1059.001</id>
+      <id>T1027</id>
+    </mitre>
+    <group>windows,powershell,obfuscation,</group>
+  </rule>
+
+  <!-- Rule 6: Certutil Abuse (LOLBin - File Download) -->
+  <rule id="100006" level="13">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)certutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(-urlcache|-decode|-encode)</field>
+    <description>SOC-CRITICAL: Certutil LOLBin abuse — possible file download or decode operation</description>
+    <mitre>
+      <id>T1105</id>
+      <id>T1140</id>
+    </mitre>
+    <group>windows,lolbin,t1105,</group>
+  </rule>
+
+  <!-- Rule 7: MSHTA Execution (Script Execution via HTA) -->
+  <rule id="100007" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)mshta\.exe$</field>
+    <description>SOC-ALERT: MSHTA.exe execution — possible malicious HTA script</description>
+    <mitre>
+      <id>T1218.005</id>
+    </mitre>
+    <group>windows,lolbin,execution,</group>
+  </rule>
+
+  <!-- Rule 8: WMIC Remote Process Execution (Lateral Movement) -->
+  <rule id="100008" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)wmic\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(process call create|/node:)</field>
+    <description>SOC-ALERT: WMIC remote process creation — possible lateral movement</description>
+    <mitre>
+      <id>T1047</id>
+      <id>T1021</id>
+    </mitre>
+    <group>windows,lateral_movement,wmic,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       PRIVILEGE ESCALATION
+       MITRE ATT&CK: T1068 - Exploitation for Privilege Escalation
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 9: New Local Admin Account Created -->
+  <rule id="100009" level="14">
+    <if_sid>60111</if_sid>
+    <field name="win.system.eventID">^4720$</field>
+    <description>SOC-CRITICAL: New user account created (EventID 4720) — verify with admin</description>
+    <mitre>
+      <id>T1136.001</id>
+    </mitre>
+    <group>windows,account_management,persistence,</group>
+  </rule>
+
+  <!-- Rule 10: User Added to Administrators Group -->
+  <rule id="100010" level="14">
+    <if_sid>60111</if_sid>
+    <field name="win.system.eventID">^4732$</field>
+    <field name="win.eventdata.targetUserName" type="pcre2">(?i)(administrators|domain admins)</field>
+    <description>SOC-CRITICAL: User added to Administrators group (EventID 4732)</description>
+    <mitre>
+      <id>T1098</id>
+    </mitre>
+    <group>windows,privilege_escalation,account_management,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       RANSOMWARE INDICATORS
+       MITRE ATT&CK: T1486 - Data Encrypted for Impact
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 11: Mass File Modification (Ransomware Indicator) -->
+  <rule id="100011" level="15" frequency="50" timeframe="10">
+    <if_matched_sid>550</if_matched_sid>
+    <description>SOC-EMERGENCY: Mass file modification in 10 seconds — POSSIBLE RANSOMWARE</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+    <group>fim,ransomware,critical,</group>
+  </rule>
+
+  <!-- Rule 12: Shadow Copy Deletion (Pre-Ransomware) -->
+  <rule id="100012" level="15">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(vssadmin.*delete|wmic.*shadowcopy.*delete)</field>
+    <description>SOC-EMERGENCY: Shadow copy deletion detected — RANSOMWARE pre-attack stage</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+    <group>windows,ransomware,critical,t1490,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       CREDENTIAL DUMPING
+       MITRE ATT&CK: T1003 - OS Credential Dumping
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 13: LSASS Memory Access (Mimikatz Pattern) -->
+  <rule id="100013" level="15">
+    <if_sid>61604</if_sid>
+    <field name="win.eventdata.targetImage" type="pcre2">(?i)lsass\.exe$</field>
+    <field name="win.eventdata.grantedAccess" type="pcre2">(0x1fffff|0x1010|0x143a|0x1438)</field>
+    <description>SOC-EMERGENCY: LSASS memory access detected — MIMIKATZ or credential dumping tool</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+    <group>windows,credential_access,mimikatz,critical,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       NETWORK RECONNAISSANCE
+       MITRE ATT&CK: T1046 - Network Service Scanning
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 14: Nmap Port Scan Detection (from Suricata) -->
+  <rule id="100014" level="8">
+    <if_sid>86601</if_sid>
+    <field name="alert.signature" type="pcre2">(?i)(nmap|scan)</field>
+    <description>SOC-ALERT: Network port scan detected via Suricata IDS</description>
+    <mitre>
+      <id>T1046</id>
+    </mitre>
+    <group>network,suricata,reconnaissance,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       PERSISTENCE MECHANISMS
+       MITRE ATT&CK: T1547 - Boot or Logon Autostart Execution
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 15: Registry Run Key Modification -->
+  <rule id="100015" level="11">
+    <if_sid>61612</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)(CurrentVersion\\Run|CurrentVersion\\RunOnce)</field>
+    <description>SOC-ALERT: Registry Run key modified — possible persistence mechanism</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+    <group>windows,persistence,registry,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       DATA EXFILTRATION
+       MITRE ATT&CK: T1048 - Exfiltration Over Alternative Protocol
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 16: DNS Tunneling Detection (High Query Volume) -->
+  <rule id="100016" level="11" frequency="100" timeframe="60">
+    <if_matched_sid>86601</if_matched_sid>
+    <field name="alert.signature" type="pcre2">(?i)dns</field>
+    <description>SOC-ALERT: Abnormal DNS query volume — possible DNS tunneling/exfiltration</description>
+    <mitre>
+      <id>T1048.001</id>
+      <id>T1071.004</id>
+    </mitre>
+    <group>network,suricata,exfiltration,dns,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       HONEYPOT TRIGGERS
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 17: Cowrie Honeypot Activity -->
+  <rule id="100017" level="14">
+    <decoded_as>json</decoded_as>
+    <field name="eventid" type="pcre2">^cowrie\.</field>
+    <description>SOC-CRITICAL: Attacker interaction with SSH honeypot (Cowrie)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1133</id>
+    </mitre>
+    <group>honeypot,cowrie,attacker_detected,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       LINUX PRIVILEGE ESCALATION
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 18: Sudo Privilege Escalation -->
+  <rule id="100018" level="12">
+    <if_sid>5402</if_sid>
+    <match>COMMAND=/bin/bash</match>
+    <description>SOC-ALERT: Root shell obtained via sudo — verify if authorized</description>
+    <mitre>
+      <id>T1548.003</id>
+    </mitre>
+    <group>linux,privilege_escalation,sudo,</group>
+  </rule>
+
+  <!-- ════════════════════════════════════════════════════════
+       VULNERABILITY EXPLOIT PATTERNS
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Rule 19: Log4Shell Exploitation Attempt -->
+  <rule id="100019" level="15">
+    <decoded_as>json</decoded_as>
+    <field name="message" type="pcre2">(?i)\$\{jndi:(ldap|rmi|dns)://</field>
+    <description>SOC-EMERGENCY: Log4Shell (CVE-2021-44228) exploitation attempt detected</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web,exploit,log4shell,critical,</group>
+  </rule>
+
+  <!-- Rule 20: SQL Injection in Web Logs -->
+  <rule id="100020" level="10">
+    <if_sid>31108</if_sid>
+    <url_match>union.*select|select.*from|insert.*into|drop.*table|'; drop</url_match>
+    <description>SOC-ALERT: SQL injection attempt in web application logs</description>
+    <mitre>
+      <id>T1190</id>
+    </mitre>
+    <group>web,sqli,t1190,</group>
+  </rule>
+
+</group>

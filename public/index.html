@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0f1e" />
+    <meta
+      name="description"
+      content="Advanced SOC Lab — Enterprise Security Operations Center Dashboard.
+               Built with Wazuh, TheHive, Suricata, MISP, and React."
+    />
+
+    <!-- Prevent search engine indexing of internal lab tool -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!-- Open Graph (for internal sharing / documentation) -->
+    <meta property="og:title" content="Advanced SOC Lab" />
+    <meta property="og:description" content="Enterprise SOC Dashboard — Wazuh · TheHive · Suricata · MISP" />
+    <meta property="og:type" content="website" />
+
+    <!-- ─────────────────────────────────────────────────
+         Fonts — loaded from Google Fonts CDN
+         Inter       : primary UI font
+         JetBrains Mono : monospace for IPs, hashes, rule IDs
+    ───────────────────────────────────────────────────── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Page title — shown in browser tab -->
+    <title>Advanced SOC Lab | Security Operations Center</title>
+
+    <!-- ─────────────────────────────────────────────────
+         Inline critical styles
+         Sets the cyber dark background immediately so
+         there is no white flash before React mounts.
+    ───────────────────────────────────────────────────── -->
+    <style>
+      /* Reset */
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Root background — matches tailwind.config.js cyber.bg */
+      html,
+      body,
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+
+      body {
+        background-color: #0a0f1e;
+        color: #c8d8f0;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow-x: hidden;
+      }
+
+      /* Custom scrollbar — cyber theme */
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0a0f1e;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1a2744;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 229, 255, 0.3);
+      }
+
+      /* Loading screen — shown before React hydrates */
+      #soc-loading {
+        position: fixed;
+        inset: 0;
+        background: #0a0f1e;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+
+      #soc-loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .soc-loading-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .soc-loading-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: rgba(0, 229, 255, 0.1);
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+        animation: icon-pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes icon-pulse {
+        0%, 100% { box-shadow: 0 0 20px rgba(0, 229, 255, 0.2); }
+        50%       { box-shadow: 0 0 35px rgba(0, 229, 255, 0.5); }
+      }
+
+      .soc-loading-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #e8f4ff;
+        letter-spacing: 0.02em;
+      }
+
+      .soc-loading-subtitle {
+        font-size: 11px;
+        font-family: 'JetBrains Mono', monospace;
+        color: #00e5ff;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      /* Animated progress bar */
+      .soc-loading-bar-track {
+        width: 220px;
+        height: 2px;
+        background: #1a2744;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .soc-loading-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00e5ff, #7b2fff);
+        border-radius: 999px;
+        animation: loading-sweep 1.6s ease-in-out infinite;
+        width: 60%;
+      }
+
+      @keyframes loading-sweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(280%); }
+      }
+
+      /* Loading status text */
+      .soc-loading-status {
+        font-size: 12px;
+        color: #3d5080;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.05em;
+      }
+
+      /* Grid background pattern */
+      .cyber-grid {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
+        background-size: 40px 40px;
+        z-index: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- Subtle cyber grid overlay (visible through transparent panels) -->
+    <div class="cyber-grid"></div>
+
+    <!-- ─────────────────────────────────────────────────
+         Loading screen
+         Displayed while React bundle is downloading.
+         Removed automatically when React mounts — see
+         the inline script at the bottom of this file.
+    ───────────────────────────────────────────────────── -->
+    <div id="soc-loading">
+      <div class="soc-loading-logo">
+        <!-- Shield SVG icon -->
+        <div class="soc-loading-icon">
+          <svg
+            width="26" height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 2L3 6V12C3 16.97 7.02 21.61 12 23C16.98 21.61 21 16.97 21 12V6L12 2Z"
+              stroke="#00e5ff"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M9 12L11 14L15 10"
+              stroke="#00e5ff"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+
+        <div>
+          <div class="soc-loading-title">SOC Lab</div>
+          <div class="soc-loading-subtitle">Enterprise v2.0</div>
+        </div>
+      </div>
+
+      <!-- Animated progress bar -->
+      <div class="soc-loading-bar-track">
+        <div class="soc-loading-bar-fill"></div>
+      </div>
+
+      <!-- Status text cycles through phases -->
+      <div class="soc-loading-status" id="loading-status">
+        Initializing dashboard...
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────
+         React root mount point
+         React renders into this div via src/index.js.
+         Do not rename this id — it matches ReactDOM.createRoot.
+    ───────────────────────────────────────────────────── -->
+    <noscript>
+      <div style="
+        position: fixed; inset: 0;
+        background: #0a0f1e;
+        color: #ff2d6d;
+        display: flex; align-items: center; justify-content: center;
+        font-family: monospace; font-size: 16px; text-align: center; padding: 40px;
+      ">
+        ⚠ JavaScript is required to run the Advanced SOC Lab dashboard.<br/>
+        Please enable JavaScript in your browser settings.
+      </div>
+    </noscript>
+
+    <div id="root"></div>
+
+    <!-- ─────────────────────────────────────────────────
+         Loading screen dismiss script
+         Hides the loading overlay once React has mounted
+         and the #root div contains child elements.
+         Polls every 100ms, gives up after 15 seconds.
+    ───────────────────────────────────────────────────── -->
+    <script>
+      (function () {
+        var statusEl  = document.getElementById('loading-status');
+        var loadingEl = document.getElementById('soc-loading');
+        var rootEl    = document.getElementById('root');
+
+        var messages = [
+          'Initializing dashboard...',
+          'Connecting to Wazuh API...',
+          'Loading detection rules...',
+          'Fetching alert telemetry...',
+          'Rendering SOC interface...',
+        ];
+
+        var msgIndex = 0;
+        var attempts = 0;
+        var maxAttempts = 150; // 15 seconds at 100ms intervals
+
+        var msgInterval = setInterval(function () {
+          msgIndex = (msgIndex + 1) % messages.length;
+          if (statusEl) statusEl.textContent = messages[msgIndex];
+        }, 800);
+
+        var checkInterval = setInterval(function () {
+          attempts++;
+
+          // React has mounted when #root has children
+          if (rootEl && rootEl.children.length > 0) {
+            clearInterval(checkInterval);
+            clearInterval(msgInterval);
+
+            if (loadingEl) {
+              loadingEl.classList.add('hidden');
+              // Remove from DOM after CSS transition completes
+              setTimeout(function () {
+                if (loadingEl && loadingEl.parentNode) {
+                  loadingEl.parentNode.removeChild(loadingEl);
+                }
+              }, 400);
+            }
+          }
+
+          // Timeout safety — hide loading screen anyway
+          if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            clearInterval(msgInterval);
+            if (loadingEl) loadingEl.classList.add('hidden');
+          }
+        }, 100);
+      })();
+    </script>
+
+  </body>
+</html>

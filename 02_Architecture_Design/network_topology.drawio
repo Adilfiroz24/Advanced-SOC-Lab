@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Advanced SOC Lab — Network Topology Diagram
+  ============================================
+  Format: draw.io XML (diagrams.net)
+
+  To open:
+    1. Go to https://app.diagrams.net
+    2. File → Open From → Device
+    3. Select this file
+
+  Network: 192.168.56.0/24 (VirtualBox host-only)
+
+  Hosts:
+    192.168.56.1  — pfSense Firewall / Default Gateway
+    192.168.56.10 — Ubuntu SIEM Server (Wazuh + TheHive + MISP + Suricata)
+    192.168.56.20 — Kali Linux Attacker VM
+    192.168.56.30 — Windows 10 Victim (Sysmon + Wazuh Agent)
+    192.168.56.40 — Ubuntu Web Server (Apache + Wazuh Agent)
+-->
+<mxfile
+  host="app.diagrams.net"
+  modified="2024-01-15T00:00:00.000Z"
+  agent="Advanced SOC Lab"
+  version="22.1.0"
+  type="device"
+>
+  <diagram name="SOC Lab Network Topology" id="soc-lab-v2">
+    <mxGraphModel
+      dx="1400" dy="900"
+      grid="1" gridSize="10"
+      guides="1" tooltips="1"
+      connect="1" arrows="1"
+      fold="1" page="1"
+      pageScale="1"
+      pageWidth="1600" pageHeight="1000"
+      math="0" shadow="1"
+    >
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ═══════════════════════════════════════
+             BACKGROUND ZONES
+             ═══════════════════════════════════════ -->
+
+        <!-- Internet Zone -->
+        <mxCell id="zone-internet"
+          value="INTERNET / UNTRUSTED"
+          style="swimlane;fillColor=#fce4d6;strokeColor=#d79b00;fontStyle=1;fontSize=11;startSize=28;opacity=40;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="600" y="20" width="400" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Lab Network Zone -->
+        <mxCell id="zone-lab"
+          value="HOST-ONLY LAB NETWORK — 192.168.56.0/24"
+          style="swimlane;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;startSize=28;opacity=30;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="80" y="300" width="1440" height="620" as="geometry" />
+        </mxCell>
+
+        <!-- SOC Server sub-zone -->
+        <mxCell id="zone-soc"
+          value="SOC PLATFORM (192.168.56.10)"
+          style="swimlane;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=10;startSize=24;opacity=40;dashed=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="540" y="360" width="540" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             INTERNET / EXTERNAL
+             ═══════════════════════════════════════ -->
+
+        <!-- Internet cloud -->
+        <mxCell id="internet"
+          value="Internet&#xa;Attack Surface"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="700" y="45" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- External attacker (internet-based) -->
+        <mxCell id="ext-attacker"
+          value="External Threat Actor&#xa;(AbuseIPDB: 94%)"
+          style="shape=mxgraph.network.server;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;fontStyle=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="920" y="50" width="60" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             FIREWALL
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="firewall"
+          value="pfSense Firewall&#xa;192.168.56.1&#xa;&#xa;WAN: DHCP (internet)&#xa;LAN: 192.168.56.1/24"
+          style="shape=mxgraph.cisco.firewalls.firewall;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;fontStyle=1;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="750" y="200" width="80" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             HOST-ONLY NETWORK SWITCH
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="switch"
+          value="Host-Only Switch&#xa;192.168.56.0/24"
+          style="shape=mxgraph.network.switch;fillColor=#1ba1e2;strokeColor=#006EAF;fontColor=#ffffff;fontSize=10;fontStyle=1;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="750" y="400" width="80" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             KALI LINUX ATTACKER
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="kali"
+          value="&lt;b&gt;Kali Linux Attacker&lt;/b&gt;&#xa;192.168.56.20&#xa;&#xa;• Nmap / Masscan&#xa;• Hydra / Medusa&#xa;• Metasploit / MSF&#xa;• Atomic Red Team&#xa;• Caldera Agent"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;shadow=1;align=left;spacingLeft=8;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="110" y="390" width="195" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             SIEM SERVER COMPONENTS
+             ═══════════════════════════════════════ -->
+
+        <!-- Wazuh -->
+        <mxCell id="wazuh"
+          value="&lt;b&gt;Wazuh 4.7&lt;/b&gt;&#xa;Manager + Indexer + Dashboard&#xa;Ports: 1514, 1515, 55000, 443"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="570" y="400" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- TheHive + Cortex -->
+        <mxCell id="thehive"
+          value="&lt;b&gt;TheHive 5 + Cortex 3&lt;/b&gt;&#xa;Case Management + SOAR&#xa;Ports: 9000, 9001"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="570" y="490" width="220" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- MISP -->
+        <mxCell id="misp"
+          value="&lt;b&gt;MISP 2.4&lt;/b&gt;&#xa;Threat Intelligence Platform&#xa;Port: 8443"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="570" y="580" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Suricata -->
+        <mxCell id="suricata"
+          value="&lt;b&gt;Suricata 7 IDS/IPS&lt;/b&gt;&#xa;Network monitoring on eth1&#xa;EVE JSON → Wazuh"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="570" y="660" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Cowrie -->
+        <mxCell id="cowrie"
+          value="&lt;b&gt;Cowrie Honeypot&lt;/b&gt;&#xa;SSH/Telnet deception&#xa;Port: 2222 / 2323"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="570" y="740" width="220" height=60 as="geometry" />
+        </mxCell>
+
+        <!-- Caldera -->
+        <mxCell id="caldera"
+          value="&lt;b&gt;MITRE Caldera&lt;/b&gt;&#xa;Adversary emulation server&#xa;Port: 8888"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="810" y="400" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- SOC React UI -->
+        <mxCell id="socui"
+          value="&lt;b&gt;React SOC Dashboard&lt;/b&gt;&#xa;Analyst UI (offline capable)&#xa;Port: 3000"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="810" y="490" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             WINDOWS 10 VICTIM
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="windows"
+          value="&lt;b&gt;Windows 10 Victim&lt;/b&gt;&#xa;192.168.56.30&#xa;&#xa;• Sysmon 15 (EventIDs 1,3,8,10,11,13,22)&#xa;• Winlogbeat → Wazuh&#xa;• Wazuh Agent (port 1514)&#xa;• Caldera Sandcat Agent"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;shadow=1;align=left;spacingLeft=8;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="1150" y="390" width="220" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             UBUNTU WEB SERVER
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="webserver"
+          value="&lt;b&gt;Ubuntu Web Server&lt;/b&gt;&#xa;192.168.56.40&#xa;&#xa;• Apache / Nginx&#xa;• Filebeat → Wazuh&#xa;• Wazuh Agent (port 1514)&#xa;• Caldera Sandcat Agent"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;shadow=1;align=left;spacingLeft=8;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="1150" y="580" width="220" height="140" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             SOC ANALYST WORKSTATION
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="analyst"
+          value="&lt;b&gt;SOC Analyst Workstation&lt;/b&gt;&#xa;localhost (host machine)&#xa;&#xa;• React SOC UI :3000&#xa;• Kibana :5601&#xa;• Wazuh Dashboard :443"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;shadow=1;align=left;spacingLeft=8;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="110" y="640" width="220" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             CONNECTIONS
+             ═══════════════════════════════════════ -->
+
+        <!-- Internet → Firewall -->
+        <mxCell id="e-inet-fw"
+          value="WAN traffic"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#b85450;strokeWidth=2;"
+          edge="1" parent="1" source="internet" target="firewall"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- External attacker → Firewall -->
+        <mxCell id="e-ext-fw"
+          value=""
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;"
+          edge="1" parent="1" source="ext-attacker" target="firewall"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Firewall → Switch -->
+        <mxCell id="e-fw-sw"
+          value="LAN 192.168.56.1"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6c8ebf;strokeWidth=2.5;"
+          edge="1" parent="1" source="firewall" target="switch"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Switch → Kali -->
+        <mxCell id="e-sw-kali"
+          value="Attack traffic"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;strokeWidth=1.5;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;"
+          edge="1" parent="1" source="switch" target="kali"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Switch → Wazuh (SIEM) -->
+        <mxCell id="e-sw-wazuh"
+          value="Alerts / Agents"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=2;"
+          edge="1" parent="1" source="switch" target="wazuh"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Switch → Windows -->
+        <mxCell id="e-sw-win"
+          value="Winlogbeat :1514"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;strokeWidth=1.5;exitX=1;exitY=0.5;entryX=0;entryY=0.3;"
+          edge="1" parent="1" source="switch" target="windows"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Switch → Web server -->
+        <mxCell id="e-sw-web"
+          value="Filebeat :1514"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#d6b656;strokeWidth=1.5;exitX=1;exitY=0.7;entryX=0;entryY=0.3;"
+          edge="1" parent="1" source="switch" target="webserver"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Wazuh → TheHive (auto case creation) -->
+        <mxCell id="e-wazuh-th"
+          value="auto_investigate.py"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"
+          edge="1" parent="1" source="wazuh" target="thehive"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- TheHive → MISP (TI enrichment) -->
+        <mxCell id="e-th-misp"
+          value="IOC enrichment"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;strokeWidth=1.5;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"
+          edge="1" parent="1" source="thehive" target="misp"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MISP → Wazuh (CDB lists) -->
+        <mxCell id="e-misp-wazuh"
+          value="CDB lists"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=1;dashed=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;curved=1;"
+          edge="1" parent="1" source="misp" target="wazuh"
+        >
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="610" />
+              <mxPoint x="820" y="435" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Suricata → Wazuh (EVE JSON) -->
+        <mxCell id="e-sur-wazuh"
+          value="EVE JSON logs"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=1.5;exitX=0.5;exitY=0;entryX=0.5;entryY=1;"
+          edge="1" parent="1" source="suricata" target="wazuh"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Cowrie → Wazuh (JSON logs) -->
+        <mxCell id="e-cow-wazuh"
+          value="cowrie.json"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#82b366;strokeWidth=1.5;exitX=0.5;exitY=0;entryX=0.2;entryY=1;"
+          edge="1" parent="1" source="cowrie" target="wazuh"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Kali → Cowrie (honeypot interaction) -->
+        <mxCell id="e-kali-cow"
+          value="SSH :2222 (honeypot)"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;strokeWidth=1;dashed=1;"
+          edge="1" parent="1" source="kali" target="cowrie"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Analyst → SOC UI -->
+        <mxCell id="e-analyst-ui"
+          value="HTTPS :3000 / :443"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;strokeWidth=1.5;"
+          edge="1" parent="1" source="analyst" target="socui"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Caldera → Windows (agent) -->
+        <mxCell id="e-cal-win"
+          value="Sandcat agent"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#9673a6;strokeWidth=1;dashed=1;"
+          edge="1" parent="1" source="caldera" target="windows"
+        >
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- TheHive → Cortex (block_ip) -->
+        <mxCell id="e-th-block"
+          value="block_ip.py :55000"
+          style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#b85450;strokeWidth=1;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"
+          edge="1" parent="1" source="thehive" target="firewall"
+        >
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="530" y="525" />
+              <mxPoint x="530" y="235" />
+              <mxPoint x="750" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             LEGEND
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="legend"
+          value="LEGEND&#xa;─────────────────&#xa;🟥 Attacker / Untrusted&#xa;🟩 SOC Platform (192.168.56.10)&#xa;🟨 Monitored Endpoints&#xa;🟪 Analyst / Management&#xa;━━ Live data path&#xa;╌╌ Automation / integration&#xa;╌╌ Attack path"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;align=left;spacingLeft=8;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="110" y="820" width="215" height="160" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════
+             PORT REFERENCE TABLE
+             ═══════════════════════════════════════ -->
+
+        <mxCell id="ports"
+          value="KEY PORTS&#xa;─────────────────────────&#xa;:443  — Wazuh Dashboard (HTTPS)&#xa;:1514 — Wazuh agent events&#xa;:1515 — Wazuh enrollment&#xa;:2222 — Cowrie SSH honeypot&#xa;:3000 — React SOC UI&#xa;:5601 — Kibana&#xa;:8443 — MISP&#xa;:8888 — Caldera UI&#xa;:9000 — TheHive&#xa;:9001 — Cortex&#xa;:9200 — Wazuh Indexer&#xa;:55000 — Wazuh API"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;align=left;spacingLeft=8;shadow=1;"
+          vertex="1" parent="1"
+        >
+          <mxGeometry x="1360" y="390" width="200" height="230" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

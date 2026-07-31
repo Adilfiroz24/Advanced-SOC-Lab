@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Advanced SOC Lab — Sysmon Configuration
+  Based on SwiftOnSecurity/sysmon-config with SOC Lab enhancements
+  Deploy: sysmon64.exe -accepteula -i sysmon_config.xml
+  Monitor: Event IDs 1,3,5,7,8,10,11,12,13,17,18,22,23,25
+-->
+<Sysmon schemaversion="4.90">
+  <HashAlgorithms>MD5,SHA256,IMPHASH</HashAlgorithms>
+  <CheckRevocation>True</CheckRevocation>
+
+  <EventFiltering>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 1: Process Creation              -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Process Creation" groupRelation="or">
+      <ProcessCreate onmatch="include">
+
+        <!-- Living-off-the-land binaries (LOLBins) -->
+        <Image condition="end with">certutil.exe</Image>
+        <Image condition="end with">mshta.exe</Image>
+        <Image condition="end with">regsvr32.exe</Image>
+        <Image condition="end with">rundll32.exe</Image>
+        <Image condition="end with">wscript.exe</Image>
+        <Image condition="end with">cscript.exe</Image>
+        <Image condition="end with">msiexec.exe</Image>
+        <Image condition="end with">bitsadmin.exe</Image>
+        <Image condition="end with">wmic.exe</Image>
+        <Image condition="end with">powershell.exe</Image>
+        <Image condition="end with">pwsh.exe</Image>
+        <Image condition="end with">cmd.exe</Image>
+        <Image condition="end with">net.exe</Image>
+        <Image condition="end with">net1.exe</Image>
+        <Image condition="end with">at.exe</Image>
+        <Image condition="end with">schtasks.exe</Image>
+        <Image condition="end with">reg.exe</Image>
+        <Image condition="end with">sc.exe</Image>
+        <Image condition="end with">whoami.exe</Image>
+        <Image condition="end with">nltest.exe</Image>
+        <Image condition="end with">mimikatz.exe</Image>
+
+        <!-- Suspicious parent-child relationships -->
+        <ParentImage condition="end with">winword.exe</ParentImage>
+        <ParentImage condition="end with">excel.exe</ParentImage>
+        <ParentImage condition="end with">outlook.exe</ParentImage>
+        <ParentImage condition="end with">powerpnt.exe</ParentImage>
+
+        <!-- Execution from unusual locations -->
+        <CommandLine condition="contains">AppData\Local\Temp</CommandLine>
+        <CommandLine condition="contains">AppData\Roaming</CommandLine>
+        <CommandLine condition="contains">\Downloads\</CommandLine>
+        <CommandLine condition="contains">-EncodedCommand</CommandLine>
+        <CommandLine condition="contains">-enc </CommandLine>
+        <CommandLine condition="contains">IEX</CommandLine>
+        <CommandLine condition="contains">Invoke-Expression</CommandLine>
+        <CommandLine condition="contains">DownloadString</CommandLine>
+        <CommandLine condition="contains">DownloadFile</CommandLine>
+        <CommandLine condition="contains">WebClient</CommandLine>
+        <CommandLine condition="contains">FromBase64String</CommandLine>
+
+      </ProcessCreate>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 3: Network Connection            -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Network Connections" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <!-- Suspicious outbound ports -->
+        <DestinationPort condition="is">4444</DestinationPort>
+        <DestinationPort condition="is">1337</DestinationPort>
+        <DestinationPort condition="is">31337</DestinationPort>
+        <DestinationPort condition="is">8888</DestinationPort>
+        <DestinationPort condition="is">9001</DestinationPort>
+        <DestinationPort condition="is">9002</DestinationPort>
+
+        <!-- Unusual processes making network connections -->
+        <Image condition="end with">powershell.exe</Image>
+        <Image condition="end with">wscript.exe</Image>
+        <Image condition="end with">cscript.exe</Image>
+        <Image condition="end with">regsvr32.exe</Image>
+        <Image condition="end with">mshta.exe</Image>
+        <Image condition="end with">certutil.exe</Image>
+        <Image condition="end with">bitsadmin.exe</Image>
+
+      </NetworkConnect>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 5: Process Terminated            -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Process Terminated" groupRelation="or">
+      <ProcessTerminate onmatch="include">
+        <Image condition="end with">mimikatz.exe</Image>
+        <Image condition="end with">procdump.exe</Image>
+        <Image condition="end with">wce.exe</Image>
+      </ProcessTerminate>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 7: Image Loaded (DLL)            -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Image Loaded" groupRelation="or">
+      <ImageLoad onmatch="include">
+        <ImageLoaded condition="end with">samlib.dll</ImageLoaded>
+        <ImageLoaded condition="end with">wce_krbtkts.dll</ImageLoaded>
+        <Signed condition="is">false</Signed>
+      </ImageLoad>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 8: CreateRemoteThread            -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="CreateRemoteThread" groupRelation="or">
+      <CreateRemoteThread onmatch="include">
+        <TargetImage condition="end with">lsass.exe</TargetImage>
+        <TargetImage condition="end with">winlogon.exe</TargetImage>
+        <TargetImage condition="end with">svchost.exe</TargetImage>
+        <TargetImage condition="end with">explorer.exe</TargetImage>
+      </CreateRemoteThread>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 10: Process Access (lsass dump) -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Process Access" groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <TargetImage condition="end with">lsass.exe</TargetImage>
+        <GrantedAccess condition="is">0x1FFFFF</GrantedAccess>
+        <GrantedAccess condition="is">0x1010</GrantedAccess>
+        <GrantedAccess condition="is">0x143A</GrantedAccess>
+      </ProcessAccess>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 11: File Creation               -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="File Created" groupRelation="or">
+      <FileCreate onmatch="include">
+        <TargetFilename condition="end with">.exe</TargetFilename>
+        <TargetFilename condition="end with">.dll</TargetFilename>
+        <TargetFilename condition="end with">.bat</TargetFilename>
+        <TargetFilename condition="end with">.ps1</TargetFilename>
+        <TargetFilename condition="contains">Startup</TargetFilename>
+        <TargetFilename condition="contains">\AppData\Roaming</TargetFilename>
+        <TargetFilename condition="contains">\AppData\Local\Temp</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 12/13: Registry Modifications   -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="Registry" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <TargetObject condition="contains">CurrentVersion\Run</TargetObject>
+        <TargetObject condition="contains">CurrentVersion\RunOnce</TargetObject>
+        <TargetObject condition="contains">Winlogon</TargetObject>
+        <TargetObject condition="contains">AppInit_DLLs</TargetObject>
+        <TargetObject condition="contains">Image File Execution Options</TargetObject>
+        <TargetObject condition="contains">SecurityProviders</TargetObject>
+        <TargetObject condition="contains">LSA\Notification</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
+
+    <!-- ══════════════════════════════════════════ -->
+    <!-- Event ID 22: DNS Queries                 -->
+    <!-- ══════════════════════════════════════════ -->
+    <RuleGroup name="DNS Query" groupRelation="or">
+      <DnsQuery onmatch="include">
+        <QueryName condition="end with">.onion</QueryName>
+        <QueryName condition="end with">.bit</QueryName>
+        <QueryName condition="contains">duckdns.org</QueryName>
+        <QueryName condition="contains">ngrok.io</QueryName>
+        <QueryName condition="contains">pastebin.com</QueryName>
+      </DnsQuery>
+    </RuleGroup>
+
+  </EventFiltering>
+</Sysmon>
