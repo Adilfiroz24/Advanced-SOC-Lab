@@ -1,4 +1,4 @@
-# 🛡️ Advanced SOC Lab — Project Overview
+# 🛡️ Advanced SOC Lab -— Project Overview
 
 ## Objective
 
