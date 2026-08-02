@@ -97,7 +97,21 @@ npm install && npm start
 | 6 | Final report, documentation, UI polish |
 
 ---
+Screenshots
+Dashboard Overview
+https://screenshots/Dashboard.png
 
+Figure 1: Main SOC dashboard showing 33 alerts today, critical incidents, open cases, and average MTTR. The chart shows alert volume by severity over the last 24 hours.
+
+MITRE ATT&CK Heatmap
+https://screenshots/MITRE-Heatmap.png
+
+Figure 2: MITRE ATT&CK coverage map demonstrating 81% coverage (17/21 techniques). Techniques with a cyan border have been actively tested. Hover for detailed counts.
+
+Purple Team Results
+https://screenshots/Purple-Team-Results.png
+
+Figure 3: Purple Team validation table showing 14 Atomic Red Team tests executed, 12 alerts fired, achieving an 86% detection rate with an average MTTD of 15.8 seconds. Two gaps were identified and are under investigation.
 ## References
 
 - [Wazuh Documentation](https://documentation.wazuh.com)
