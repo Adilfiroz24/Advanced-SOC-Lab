@@ -99,17 +99,20 @@ npm install && npm start
 ---
 Screenshots
 Dashboard Overview
-https://screenshots/Dashboard.png
+<img width="1919" height="915" alt="Dashboard 2" src="https://github.com/user-attachments/assets/a480df9e-6832-4353-811d-7ff55f815aef" />
+
 
 Figure 1: Main SOC dashboard showing 33 alerts today, critical incidents, open cases, and average MTTR. The chart shows alert volume by severity over the last 24 hours.
 
 MITRE ATT&CK Heatmap
-https://screenshots/MITRE-Heatmap.png
+<img width="1546" height="772" alt="MITRE Heatmap" src="https://github.com/user-attachments/assets/64823ced-c404-4b3c-a249-da236acff83f" />
+
 
 Figure 2: MITRE ATT&CK coverage map demonstrating 81% coverage (17/21 techniques). Techniques with a cyan border have been actively tested. Hover for detailed counts.
 
 Purple Team Results
-https://screenshots/Purple-Team-Results.png
+<img width="1571" height="916" alt="Purple Team Results" src="https://github.com/user-attachments/assets/3cbe1034-5c37-456f-8480-8019dbe28c93" />
+
 
 Figure 3: Purple Team validation table showing 14 Atomic Red Team tests executed, 12 alerts fired, achieving an 86% detection rate with an average MTTD of 15.8 seconds. Two gaps were identified and are under investigation.
 ## References
